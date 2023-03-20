@@ -32,7 +32,7 @@ if __name__ == "__main__":
         map(lambda x: x.split(".")[1] if "." in x else "", field(data, "atomic_mass"))
     )
 
-    with open("macro.rs", "w") as generated:
+    with open("generated.rs", "w") as generated:
         for i, (key, value) in enumerate(data.items()):
             mass = value["atomic_mass"]
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
             )
 
             generated.write(
-                f"   {value['atomic_symbol'].ljust(2)}"
+                f"    {value['atomic_symbol'].ljust(2)}"
                 f" {value['atomic_number']}:{' '*(3-len(value['atomic_number']))}"
                 f" {value['element_name'].ljust(lname)}"
                 f" {padded_mass}"
