@@ -1,66 +1,57 @@
+"""
+codegen.py
+
+  Generate entries for a custom macro for the elements of the periodic table.
+"""
+
 import json
 
 __author__ = """Pin Lee - (C) 2023"""
 
-with open('./codegen/elements_by_number.json', 'r') as f:
-    data = json.load(f)
+
+def field(a, key):
+    "Get a field from every dict in a list"
     
-    with open('src/elements.rs', 'w') as generated:
-        generated.write("""#![allow(clippy::excessive_precision)]
-
-use lazy_static::lazy_static;
-
-pub mod element;
-use crate::elements::element::Element;
-
-lazy_static! {    
-    static ref NUMBER_TO_ELEMENT: Vec<Element> = { 
-        let mut tmp = vec![];
-
-        tmp.insert(0, Element { 
-            number: 0, 
-            name: "Default".to_owned(), 
-            symbol:"ඞ".to_owned(),
-            mass: 0_f32,
-            electron_configuration: "".to_owned()
-        });
-""")
-
-        for key, value in data.items():
-            # DO NOT TOUCH THE INDENTATION; YOU WILL BREAK EVERYTHING, YOU FOOL!!! 
-            generated.write(f"""
-        tmp.insert({value['atomic_number']}, Element {{ 
-            number: {value['atomic_number']}, 
-            name: "{value['element_name']}".to_owned(), 
-            symbol: "{value['atomic_symbol']}".to_owned(),
-            mass: {value['atomic_mass']}_f32,
-            electron_configuration: "{value['electron_configuration']}".to_owned()
-        }});
-""")
-
-        generated.write("""    tmp
-    };
-}
-
-// INPUT TO ELEMENT - match Identifier to Element (proc macro this)
-pub fn lookup(property: String) -> Result<&'static Element, &'static str> {
-    match property.as_str() {
-""")
-
-        for key, value in data.items():
-            generated.write(f"""        "{value['atomic_symbol']}" => Ok(&NUMBER_TO_ELEMENT[{value['atomic_number']}]),
-        "{value['element_name']}" => Ok(&NUMBER_TO_ELEMENT[{value['atomic_number']}]),
-        "{value['atomic_number']}" => Ok(&NUMBER_TO_ELEMENT[{value['atomic_number']}]),
-
-""")  
-
-        generated.write("""        _ => Err("Invalid element identifier."),
-    }
-}""")
-
-        
+    return map(lambda x: x[1][key], a.items())
 
 
+def longest(a):
+    "Get the length of the longest string"
+    
+    return max(map(len, a))
 
 
+if __name__ == "__main__":
+    with open("./codegen/elements_by_number.json", "r") as f:
+        data = json.load(f)
 
+    lname = longest(field(data, "element_name"))
+    lmass = longest(field(data, "atomic_mass"))
+    lmasswhole = longest(map(lambda x: x.split(".")[0], field(data, "atomic_mass")))
+    lmassfract = longest(
+        map(lambda x: x.split(".")[1] if "." in x else "", field(data, "atomic_mass"))
+    )
+
+    with open("macro.rs", "w") as generated:
+        for i, (key, value) in enumerate(data.items()):
+            mass = value["atomic_mass"]
+
+            padded_mass = (
+                (
+                    mass.split(".")[0].rjust(lmasswhole, " ")
+                    + "."
+                    + mass.split(".")[1].ljust(lmassfract, "0")
+                )
+                if "." in mass
+                else (mass.rjust(lmasswhole, " ") + "." + "0" * lmassfract)
+            )
+
+            generated.write(
+                f"   {value['atomic_symbol'].ljust(2)}"
+                f" {value['atomic_number']}:{' '*(3-len(value['atomic_number']))}"
+                f" {value['element_name'].ljust(lname)}"
+                f" {padded_mass}"
+                f" \"{value['electron_configuration']}\"{',' if i < len(data) - 1 else ''}\n"
+            )
+
+    print(f"Generated entries for {len(data)} elements!")
